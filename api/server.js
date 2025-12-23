@@ -1,20 +1,24 @@
 import express from "express";
-import multer from "multer";
 import cors from "cors";
-import dotenv from "dotenv"
+import dotenv from "dotenv";
+import { newsRouter } from "./src/routes/news.js";
+import { userRouter } from "./src/routes/users.js";
 
 const server = express();
 
-dotenv.config()
+dotenv.config();
 
 server.use(
   cors({
-    origin: "*",
+    origin: "http://localhost:3000",
     credentials: true,
+    methods: ["GET", "DELETE", "POST", "OPTIONS", "PUT" ]
   })
 );
 
 server.use(express.json());
+server.use(newsRouter);
+server.use(userRouter);
 
 server.get("/", (req, res) => {
   res.send("sex");

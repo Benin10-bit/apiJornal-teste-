@@ -1,4 +1,20 @@
-import { verifyToken } from "../services/authService.js";
+import jwt from "jsonwebtoken";
+
+const SECRET = process.env.JWT_SECRET;
+/**
+ * Função responsável por verificar e decodificar um token JWT.
+ * Caso o token seja inválido ou tenha expirado, um erro é lançado.
+ */
+function verifyToken(token) {
+  try {
+    // Verifica a assinatura e decodifica o conteúdo do token
+    const decoded = jwt.verify(token, SECRET);
+    return decoded;
+  } catch (err) {
+    // Token expirado ou inválido
+    throw new Error("Token inválido ou expirado");
+  }
+}
 
 /**
  * Middleware responsável por validar tokens JWT enviados nas requisições.
@@ -43,7 +59,6 @@ export function authMiddleware(req, res, next) {
 
     // Libera a execução para a próxima função da cadeia de middlewares
     next();
-
   } catch (err) {
     // Captura falhas inesperadas e retorna erro de autenticação
     console.error("Erro no middleware auth:", err);

@@ -1,10 +1,8 @@
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "../config/prisma.js";
 
 export class NewsModel {
   // Listar notícias (com pesquisa opcional)
-  async list(search) {
+  static async listTitle(search) {
     const noticias = await prisma.noticias.findMany({
       where: search
         ? { title: { contains: search, mode: "insensitive" } }
@@ -15,8 +13,16 @@ export class NewsModel {
     return noticias;
   }
 
+  static async listId(id) {
+    const noticias = await prisma.noticias.findUnique({
+      where: id ? { id: id } : undefined,
+    });
+
+    return noticias;
+  }
+
   // Criar nova notícia
-  async create(news) {
+  static async create(news) {
     await prisma.noticias.create({
       data: {
         title: news.title,
@@ -34,7 +40,7 @@ export class NewsModel {
   }
 
   // Atualizar notícia
-  async update(id, news) {
+  static async update(id, news) {
     await prisma.noticias.update({
       where: { id },
       data: {
@@ -53,7 +59,7 @@ export class NewsModel {
   }
 
   // Deletar notícia
-  async delete(id) {
+  static async delete(id) {
     await prisma.noticias.delete({
       where: { id },
     });

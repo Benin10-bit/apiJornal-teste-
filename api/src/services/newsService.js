@@ -1,11 +1,10 @@
 import { supabase } from "../config/supabase.js";
 import path from "path";
+import fs from "fs";
 import { NewsModel } from "../models/newsModel.js";
 
-const model = new NewsModel();
-
 export class NewsService {
-  async createNews(parts) {
+  static async createNews(parts) {
     const newsData = {
       title: "",
       summary: "",
@@ -22,18 +21,17 @@ export class NewsService {
     let indexImage = 1;
 
     try {
-      for await (const part of parts) {
+      for (const part of parts) {
         if (part.file) {
+          if (indexImage > 5) continue;
+
           const ext = path.extname(part.filename || ".jpg");
           const filename = `${Date.now()}-${Math.random()
             .toString(36)
             .substring(2, 8)}${ext}`;
 
-          const chunks = [];
-          for await (const chunk of part.file) chunks.push(chunk);
-          const buffer = Buffer.concat(chunks);
+          const buffer = part.buffer || fs.readFileSync(part.path);
 
-          // Upload para o Supabase
           const { error: uploadError } = await supabase.storage
             .from("imagens-noticias")
             .upload(filename, buffer, {
@@ -41,10 +39,7 @@ export class NewsService {
               upsert: true,
             });
 
-          if (uploadError) {
-            console.error("Erro ao salvar imagem:", uploadError);
-            throw new Error("Erro ao salvar imagem");
-          }
+          if (uploadError) throw uploadError;
 
           const { data: publicData } = supabase.storage
             .from("imagens-noticias")
@@ -52,53 +47,58 @@ export class NewsService {
 
           newsData[`image${indexImage}`] = publicData.publicUrl;
           indexImage++;
-        } else if (part.fieldname && part.value) {
+        } else if (part.fieldname && part.value !== undefined) {
           newsData[part.fieldname] = part.value;
         }
       }
 
-      // Criando a notícia
-      await model.create(newsData);
+      await NewsModel.create(newsData);
       return newsData;
     } catch (err) {
-      console.error("Erro ao criar notícia:", err);
-      throw new Error("Falha ao criar notícia. Tente novamente mais tarde.");
+      console.error("ERRO REAL NO SERVICE:", err);
+      throw err;
     }
   }
 
-  async listNews(title) {
+  static async listNews(title) {
     try {
-      return await model.list(title);
+      return await NewsModel.listTitle(title);
     } catch (err) {
-      console.error("Erro ao listar notícias:", err);
-      throw new Error("Não foi possível listar as notícias. Tente novamente.");
+      throw new Error("Falha ao criar notícia. Tente novamente mais tarde.", {
+        cause: err,
+      });
     }
   }
 
-  async updateNews(id, data) {
+  static async updateNews(id, data) {
     try {
-      await model.update(id, data);
+      await NewsModel.update(id, data);
     } catch (err) {
       console.error(`Erro ao atualizar notícia com id ${id}:`, err);
-      throw new Error(`Erro ao atualizar notícia com id ${id}. Tente novamente.`);
+      throw new Error(
+        "Falha ao editar a notícia. Tente novamente mais tarde.",
+        {
+          cause: err,
+        }
+      );
     }
   }
 
-  async deleteNews(id) {
+  static async deleteNews(id) {
     try {
-      // Tenta buscar a notícia antes
-      const news = await model.list(id);
+      const news = await NewsModel.listId(id);
+      console.log(news)
       if (!news || news.length === 0) {
         throw new Error("Notícia não encontrada");
       }
 
-      // Deleta a notícia
-      await model.delete(id);
-
-      return news; // retorna o objeto deletado pro controller
+      await NewsModel.delete(id);
+      return news;
     } catch (err) {
       console.error("Erro no Service DELETE:", err);
-      throw new Error(err.message || "Erro ao deletar notícia. Tente novamente.");
+      throw new Error(
+        err.message || "Erro ao deletar notícia. Tente novamente."
+      );
     }
   }
 }
